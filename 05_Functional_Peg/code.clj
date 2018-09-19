@@ -1,19 +1,32 @@
-(+ 1 2)
-                                        ; => 3
+;; Legend:
+;; [X] = Bad
+;; [Y] = Good
+;; *****************************************************************************
+;;; Pure functions are Referentially Transparent
+;; *****************************************************************************
 
+;; Pure functions rely on 2 things:
+;; 1. their own arguments
+;; 2. immutable values
+
+;; Mathematical functions are referentially transparent
+(+ 1 2)
+;; => 3
+
+;; Another Example
 (defn wisdom
   [words]
   (str words ", Daniel-san"))
 
 (wisdom "Always bathe on Fridays")
-                                        ; => "Always bathe on Fridays, Daniel-san"
+;; => "Always bathe on Fridays, Daniel-san"
 
+;; not refferentially transparent
 (defn year-end-evaluation
   []
   (if (> (rand) 0.5)
     "You get a raise!"
     "Better luck next year!"))
-
 
 (defn analysis
   [text]
@@ -23,17 +36,35 @@
   [filename]
   (analysis (slurp filename)))
 
+;; *****************************************************************************
+;;; Pure Functions Have No Side Effects
+;; *****************************************************************************
+
+;; see code.js file
+
+
+
+
+;; *****************************************************************************
+;; Living with Immutable Data Structures
+;; *****************************************************************************
+
+;; *****************************************************************************
+;;; Recursion instead of for/while
+;; *****************************************************************************
+
 (def great-baby-name "Rosanthony")
 great-baby-name
-                                        ; => "Rosanthony"
+;; => "Rosanthony"
 
 (let [great-baby-name "Bloodthunder"]
   great-baby-name)
-                                        ; => "Bloodthunder"
+;; => "Bloodthunder"
 
 great-baby-name
-                                        ; => "Rosanthony"
+;; => "Rosanthony"
 
+;; Sum Example with
 (defn sum
   ([vals] (sum vals 0))
   ([vals accumulating-total]
@@ -41,33 +72,55 @@ great-baby-name
      accumulating-total
      (sum (rest vals) (+ (first vals) accumulating-total)))))
 
-(sum [39 5 1]) ; single-arity body calls two-arity body
+;; Here's what the function calls might look like
+(sum [39 5 1]) ;; single-arity body calls two-arity body
 (sum [39 5 1] 0)
 (sum [5 1] 39)
 (sum [1] 44)
-(sum [] 45) ; base case is reached, so return accumulating-total
-                                        ; => 45
+(sum [] 45) ;; base case is reached, so return accumulating-total
+;; => 45
 
+;; Sum Example with recur.
+;; Use recur so stack overflow does not happen
 (defn sum
-  ([vals]
-   (sum vals 0))
+  ([vals] (sum vals 0))
   ([vals accumulating-total]
    (if (empty? vals)
      accumulating-total
      (recur (rest vals) (+ (first vals) accumulating-total)))))
 
+;; Clojure's immutable data structures are implemented using structural sharing.
+;; ToDo: understand structural sharing
 
 
+;; *****************************************************************************
+;;; Function Composition insteaad of Attribute Mutation
+;; *****************************************************************************
+
+
+;; Example of functional composition
 (require '[clojure.string :as s])
 (defn clean
   [text]
   (s/replace (s/trim text) #"lol" "LOL"))
 
 (clean "My boa constrictor is so sassy lol!  ")
-                                        ; => "My boa constrictor is so sassy LOL!"
+;; => "My boa constrictor is so sassy LOL!"
 
+;; Instead of mutating an objects the clean function passes an immutable value
+;; text to a pure function `s/trim` which interns returns an immutable value to
+;; `s/replace` which returns a final immutable value
+
+
+
+
+;; *****************************************************************************
+;;; Cool Things to Do with Pure Functions
+;; *****************************************************************************
+
+;; [Y] use comp
 ((comp inc *) 2 3)
-                                        ; => 7
+;; => 7
 
 (def character
   {:name "Smooches McCutes"
@@ -79,22 +132,15 @@ great-baby-name
 (def c-dex (comp :dexterity :attributes))
 
 (c-int character)
-                                        ; => 10
+;; => 10
 
 (c-str character)
-                                        ; => 4
+;; => 4
 
 (c-dex character)
-                                        ; => 5
+;; => 5
 
-;; Excercise 1
-(defn attr
-  ([attribute] (attr attribute :attributes))
-  ([key1 key2]
-   (comp key1 key2)))
-
-((attr :intelligence) character)
-
+;; [X] Without comp (not as elegant as using comp)
 (fn [c] (:strength (:attributes c)))
 
 (defn spell-slots
@@ -102,7 +148,7 @@ great-baby-name
   (int (inc (/ (c-int char) 2))))
 
 (spell-slots character)
-                                        ; => 6
+;; => 6
 
 (def spell-slots-comp (comp int inc #(/ % 2) c-int))
 
@@ -115,18 +161,6 @@ great-baby-name
 
 (+ 3 13)
 
-;; Excercise 2
-(defn my-comp
-  ;; accept any number of arguments
-  [& f]
-  (fn [& args]
-    (reduce (fn [result-so-far next-fn] (next-fn result-so-far))
-            (apply (last f) args)
-            (rest (reverse f)))))
-
-((comp inc inc inc inc *) 2 3 )
-((my-comp inc inc inc inc *) 2 3 )
-
 (defn sleepy-identity
   "Returns the given value after 1 second"
   [x]
@@ -134,27 +168,28 @@ great-baby-name
   x)
 
 (sleepy-identity "Mr. Fantastico")
-                                        ; => "Mr. Fantastico" after 2 second
+;; => "Mr. Fantastico" after 2 second
 
 (sleepy-identity "Mr. Fantastico")
-                                        ; => "Mr. Fantastico" after 2 second
+;; => "Mr. Fantastico" after 2 second
 
 
 (def memo-sleepy-identity (memoize sleepy-identity))
 (memo-sleepy-identity "Mr. Fantastico")
-                                        ; => "Mr. Fantastico" after 2 second
+;; => "Mr. Fantastico" after 2 second
 
 (memo-sleepy-identity "Mr. Fantastico")
-                                        ; => "Mr. Fantastico" immediately
+;; => "Mr. Fantastico" immediately
 
 
-;; Peg Thing examples
+;;; Peg Thing examples
+;;; See peg-thing.clj for complete game
 
 (defn tri*
   "Generates lazy sequence (infinite) of triangular numbers
   e.g. 1, 3, 6, 10, 15, etc"
 
-  ;; set default sum and n using airity overloading
+  ;;;; set default sum and n using airity overloading
   ([] (tri* 0 1))
   ([sum n]
    (let [new-sum (+ sum n)]
@@ -163,7 +198,7 @@ great-baby-name
 (def tri (tri*))
 
 (take 5 tri)
-                                        ; => (1 3 6 10 15)
+;; => (1 3 6 10 15)
 
 (defn triangular?
   "Is the nubmer triangular? e.g. 1, 3, 6, 10, 15, etc"
@@ -171,23 +206,23 @@ great-baby-name
   (= n (last (take-while #(>= n %) tri))))
 
 (triangular? 5)
-                                        ; => false
+;; => false
 
 (triangular? 6)
-                                        ; => true
+;; => true
 (defn row-tri
   "Get the triangular number at th end of nth row"
   [n]
   (last (take n tri)))
 
 (row-tri 1)
-                                        ; => 1
+;; => 1
 
 (row-tri 2)
-                                        ; => 3
+;; => 3
 
 (row-tri 3)
-                                        ; => 6
+;; => 6
 
 (defn row-num
   "Given `pos` return the row number on the game board"
@@ -195,34 +230,34 @@ great-baby-name
   (inc (count (take-while #(> pos %) tri))))
 
 (row-num 1)
-                                        ; => 1
+;; => 1
 (row-num 5)
-                                        ; => 3
+;; => 3
 
 (defn connect
   ""
   [board max-pos pos neighbor dest]
-  ;; test if destination is on the board
+  ;;;; test if destination is on the board
   (if (<= dest max-pos)
     (reduce (fn [new-board [p1 p2]]
               (assoc-in new-board [p1 :connections p2] neighbor))
             board
-            ;; e.g. reduce over (1,4) (4,1) so you build connection both ways
+            ;;;; e.g. reduce over (1,4) (4,1) so you build connection both ways
             [[pos dest] [dest pos]])
     board))
 
 (connect {} 15 1 2 4)
-                                        ; => {1 {:connections {4 2}}
-                                        ; =>  4 {:connections {1 2}}}
+;; => {1 {:connections {4 2}}
+;; =>  4 {:connections {1 2}}}
 
 (assoc-in {} [:cookie :monster :vocals] "Finntroll")
-                                        ; => {:cookie {:monster {:vocals "Finntroll"}}}
+;; => {:cookie {:monster {:vocals "Finntroll"}}}
 
 (get-in {:cookie {:monster {:vocals "Finntroll"}}} [:cookie :monster])
-                                        ; => {:vocals "Finntroll"}
+;; => {:vocals "Finntroll"}
 
 (assoc-in {} [1 :connections 4] 2)
-                                        ; => {1 {:connections {4 2}}}
+;; => {1 {:connections {4 2}}}
 
 (defn connect-right
   [board max-pos pos]
@@ -240,8 +275,8 @@ great-baby-name
     (connect board max-pos pos neighbor destination)))
 
 (connect-down-left {} 15 1)
-                                        ; => {1 {:connections {4 2}
-                                        ; =>  4 {:connections {1 2}}}}
+;; => {1 {:connections {4 2}
+;; =>  4 {:connections {1 2}}}}
 (defn connect-down-right
   [board max-pos pos]
   (let [row (row-num pos)
@@ -250,8 +285,8 @@ great-baby-name
     (connect board max-pos pos neighbor destination)))
 
 (connect-down-right {} 15 3)
-                                        ; => {3  {:connections {10 6}}
-                                        ; =>  10 {:connections {3 6}}}
+;; => {3  {:connections {10 6}}
+;; =>  10 {:connections {3 6}}}
 
 (defn add-pos
   [board max-pos pos]
@@ -304,7 +339,7 @@ great-baby-name
 ;; Note none of these mutate the original board.
 ;; Only a new updated board is returned from the function.
 
-;; (defn valid-moves-reduce;; does not work
+;; (defn valid-moves-reduce;;;; does not work
 ;;   "Return a map of all valid moves for pos, where the key
 ;;   is the destination and the value is the jumped position"
 ;;   [board pos]
@@ -332,11 +367,11 @@ great-baby-name
 
 (def my-board (remove-peg (new-board 5) 4))
 
-(valid-moves my-board 1)  ; => {4 2}
-(valid-moves my-board 6)  ; => {4 5}
-(valid-moves my-board 11) ; => {4 7}
-(valid-moves my-board 5)  ; => {}
-(valid-moves my-board 8)  ; => {}
+(valid-moves my-board 1)  ;; => {4 2}
+(valid-moves my-board 6)  ;; => {4 5}
+(valid-moves my-board 11) ;; => {4 7}
+(valid-moves my-board 5)  ;; => {}
+(valid-moves my-board 8)  ;; => {}
 
 
 (defn valid-move?
@@ -344,8 +379,8 @@ great-baby-name
   (get (valid-moves board p1) p2))
 
 
-(valid-move? my-board 8 4) ; => nil
-(valid-move? my-board 1 4) ; => 2
+(valid-move? my-board 8 4) ;; => nil
+(valid-move? my-board 1 4) ;; => 2
 
 (defn make-move
   [board p1 p2]
@@ -400,7 +435,47 @@ great-baby-name
 
 
 (characters-as-strings "a   b")
-                                        ; => ("a" "b")
+;; => ("a" "b")
 
 (characters-as-strings "a   cb")
-                                        ; => ("a" "c" "b")
+;; => ("a" "c" "b")
+
+
+;; *****************************************************************************
+;;; Chapter Excercises
+;; *****************************************************************************
+
+;; Excercise 1:
+;; You used (comp :intelligence :attributes) to create a function that returns
+;; a character’s intelligence. Create a new function, attr, that you can call
+;; like (attr :intelligence) and that does the same thing.
+
+(def character
+  {:name "Smooches McCutes"
+   :attributes {:intelligence 10
+                :strength 4
+                :dexterity 5}})
+
+(defn attr
+  ([attribute] (attr attribute :attributes))
+  ([key1 key2]
+   (comp key1 key2)))
+
+((attr :intelligence) character)
+;; => 10
+
+
+
+;; Excercise 2
+;; Implement the `comp` function
+
+(defn my-comp
+  ;; accept any number of arguments
+  [& f]
+  (fn [& args]
+    (reduce (fn [result-so-far next-fn] (next-fn result-so-far))
+            (apply (last f) args)
+            (rest (reverse f)))))
+
+((comp inc inc inc inc *) 2 3 )
+((my-comp inc inc inc inc *) 2 3 )

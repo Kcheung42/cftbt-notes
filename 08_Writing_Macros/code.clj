@@ -11,7 +11,7 @@
 ;;;; Syntax Quoting
 ;; Using Syntax Quoting in a Macro
 ;; Refactoring a Macro and Unquote Splicing
-;; Things to look out for
+;; Things to watch out for
 ;;;; Variable Capture
 
 ;; *****************************************************************************
@@ -114,7 +114,7 @@
 
 
 ;; *****************************************************************************
-;; Simple Quoting
+;;;; Simple Quoting
 ;; *****************************************************************************
 
 ;; Will always use quoting within macros to obtain unevaluated symbol.
@@ -181,7 +181,7 @@ sweating-to-the-oldies
 
 
 ;; *****************************************************************************
-;; Syntax Quoting
+;;;; Syntax Quoting
 ;; *****************************************************************************
 
 ;; Difference between simple quoting `'` and syntax Quoting ```?
@@ -348,40 +348,53 @@ sweating-to-the-oldies
 ;; *****************************************************************************
 
 ;; *****************************************************************************
-;; Variable Capture
+;;;; Variable Capture
 ;; *****************************************************************************
 
 ;; Variable capture occurs when a macro introduces a binding, unknown to the
 ;; macro's user, eclipses an existing binding.
 
-
-;; Not Normal behavior
-;; message in the macro eclipses the outer message "Good Job"
 (def message "Good job!")
 (defmacro with-mischief
   [& stuff-to-do]
   (concat (list 'let ['message "Oh, big deal!"])
           stuff-to-do))
 
-;; Non macro behavior
+;; What we expect it to do
 (def message "Cool")
-(concat (let [message "oh, big deal!"]) (println "hello world" message))
+(concat (let [message "oh, big deal!"])
+        (println "Here's how I feel about that thing you did: " message))
 ;; => Here's how I feel about that thing you did: Cool
 
+(let [message "oh, big deal"]
+  (println "hello world" message))
+
+(macroexpand '(with-mischief
+                (println "Here's how I feel about that thing you did: " message)))
 
 (with-mischief
   (println "Here's how I feel about that thing you did: " message))
 ;; => Here's how I feel about that thing you did: Oh, big deal!
+;; message in the macro eclipses the outer message "Good Job"
 
+
+
+;; Refactored using syntax quoting. This will cause Exception
 (def message "Good job!")
 (defmacro with-mischief
   [& stuff-to-do]
   `(let [message "Oh, big deal!"]
      ~@stuff-to-do))
 
+(macroexpand '(with-mischief
+                (println "Here's how I feel about that thing you did: " message)))
+#_(=> let* [user/message "Oh, big deal!"]
+      (println "Here's how I feel about that thing you did: " message))
+
 (with-mischief
   (println "Here's how I feel about that thing you did: " message))
-;; Exception: Can't let qualified name: user/message
+;; => Exception: Can't let qualified name: user/message
+
 
 
 ;; Conclusion: If you want to use `let` bindings in your macros, use `gensym`.
@@ -391,17 +404,21 @@ sweating-to-the-oldies
 (gensym 'message)
 ;; => message4760
 
+;; I changed the symbol macro-message to message because it better illustrates
+;; why we used gensym. This shows how message in the stuff-to-do was not
+;; eclipsed by the same message from the macro
 (defmacro without-mischief
   [& stuff-to-do]
-  (let [macro-message (gensym 'message)]
-    `(let [~macro-message "Oh, big deal!"]
+  (let [message (gensym 'message)]
+    `(let [~message "Oh, big deal!"]
        ~@stuff-to-do
-       (println "I still need to say: " ~macro-message))))
+       (println "I still need to say: " ~message))))
 
 (without-mischief
  (println "Here's how I feel about that thing you did: " message))
 ;; => Here's how I feel about that thing you did:  Good job!
 ;; => I still need to say:  Oh, big deal!
+
 
 
 `(blarg# blarg#)
@@ -411,25 +428,47 @@ sweating-to-the-oldies
 ;; => (clojure.core/let [name__2872__auto__ "Larry Potter"] name__2872__auto__)
 
 
+;; *****************************************************************************
+;;;; Double Evaluation
+;; *****************************************************************************
+
 (defmacro report
   [to-try]
   `(if ~to-try
      (println (quote ~to-try) "was successful:" ~to-try)
      (println (quote ~to-try) "was not successful:" ~to-try)))
 
-;;;; Thread/sleep takes a number of milliseconds to sleep for
+;; Thread/sleep takes a number of milliseconds to sleep for
 (report (do (Thread/sleep 1000) (+ 1 1)))
 
 
-(if (do (Thread/sleep 1000) (+ 1 1))
+;; Thread/Sleep is evaluated twice
+(if (do (Thread/sleep 1000) (+ 1 1)) ;; Thread/Sleep evaluated
   (println '(do (Thread/sleep 1000) (+ 1 1))
            "was successful:"
-           (do (Thread/sleep 1000) (+ 1 1)))
+           (do (Thread/sleep 1000) (+ 1 1))) ;; Thread/Sleep evaluated again!
 
   (println '(do (Thread/sleep 1000) (+ 1 1))
            "was not successful:"
            (do (Thread/sleep 1000) (+ 1 1))))
 
+
+;; Use auto-gensym'd symbol `result#`
+(defmacro report
+  [to-try]
+  `(let [result# ~to-try]
+     (if result#
+       (println (quote ~to-try) "was successful:" result#)
+       (println (quote ~to-try) "was not successful:" result#))))
+
+
+
+
+;; *****************************************************************************
+;;;; Macros All the Way Down
+;; *****************************************************************************
+
+;;
 
 (defmacro report
   [to-try]
@@ -452,12 +491,17 @@ sweating-to-the-oldies
 ;; => code was successful: (= 1 2)
 
 
+;; iteraction could look like this.
 (if
     code
   (clojure.core/println 'code "was successful:" code)
   (clojure.core/println 'code "was not successful:" code))
+;; Report receives the unevaluated symbol code.
+;; report is operating at the macro expansion time, so it cannot see access the
+;; value of code
 
 
+;; To Resolve: Chain macros
 (defmacro doseq-macro
   [macroname & args]
   `(do
@@ -468,11 +512,20 @@ sweating-to-the-oldies
 ;; => (= 1 2) was not successful: false
 
 
+;; *****************************************************************************
+;; Brews for the Brave and True
+;; *****************************************************************************
+
+;; *****************************************************************************
+;;; Validation Functions
+;; *****************************************************************************
+
 (def order-details
   {:name "Mitchard Blimmons"
    :email "mitchard.blimmonsgmail.com"})
 
 
+;; We want code to work like this:
 (validate order-details order-details-validations)
 ;; => {:email ["Your email address doesn't look like an email address."]}
 
@@ -486,10 +539,23 @@ sweating-to-the-oldies
 
     "Your email address doesn't look like an email address"
     #(or (empty? %) (re-seq #"@" %))]})
+;; This is a map where each key is associated with a vector of error messages
+;; and validating function pairs.
 
+(def test
+  {:name
+   ["please enter a name" not-empty]})
+
+
+;; New Core Function Introduced!
+;; Partition returns a lazy sequence of lists of n items each. See Docs for more
+;; arguments.
+(partition 4 (range 20))
+;; => ((0 1 2 3) (4 5 6 7) (8 9 10 11) (12 13 14 15) (16 17 18 19))
 
 (defn error-messages-for
-  "Return a seq of error messages"
+  "Given a value and a vector of error message and validating function
+  paris return a seq of error messages"
   [to-validate message-validator-pairs]
   (map first (filter #(not ((second %) to-validate))
                      (partition 2 message-validator-pairs))))
@@ -498,13 +564,32 @@ sweating-to-the-oldies
 (error-messages-for "" ["Please enter a name" not-empty])
 ;; => ("Please enter a name")
 
+(error-messages-for "1" ["Please enter an email address" not-empty
 
-(defn validate
-  "Returns a map with a vector of errors for each key"
+                         "your email address doesn't look like an email address"
+                         #(or (empty? %) (re-seq #"@" %))])
+;; => ("Your email address doesn't look like an email address")
+
+(defn my-validate
   [to-validate validations]
   (reduce (fn [errors validation]
-            (let [[fieldname validation-check-groups] validation
-                  value (get to-validate fieldname)
+            (let [[fieldname validation-vector] validation
+                  value (fieldname to-validate)
+                  error-messages (error-messages-for value validation-vector)]
+              (if (empty? error-messages)
+                errors
+                (assoc errors fieldname error-messages))))
+          {}
+          validations))
+
+(defn validate
+  "Given a value and a vector map, who's key is the fieldname and value is a vector of
+  (error-message validation-function) pairs, return a map with a vector of errors for each key"
+  [to-validate validations]
+  (reduce (fn [errors validation]
+            ;; [:name ["Please enter a name" not-empty]] validation
+            (let [[fieldname validation-check-groups] validation ;; arg destructuring
+                  value (get to-validate fieldname);; value (fieldname to-validate) ;; this works
                   error-messages (error-messages-for value validation-check-groups)]
               (if (empty? error-messages)
                 errors
@@ -516,12 +601,20 @@ sweating-to-the-oldies
 ;; => {:email ["Your email address doesn't look like an email address"]}
 
 
+;; *****************************************************************************
+;;; If-valid
+;; *****************************************************************************
+
+;; Validation usually look like this
+
 (let [errors (validate order-details order-details-validations)]
   (if (empty? errors)
     (println :success)
     (println :failure errors)))
 
 
+;; You might be tempted to do this. but `success-code:` and `failure-code` would
+;; get evaluated each time. (so says the book but I don't understand why)
 (defn if-valid
   [record validations success-code failure-code]
   (let [errors (validate record validations)]
@@ -529,26 +622,94 @@ sweating-to-the-oldies
       success-code
       failure-code)))
 
-
+;; Create a Macro that looks like this!
 (if-valid order-details order-details-validations errors
-          (render :success)
-          (render :failure errors))
+          (println :success)
+          (println :failure errors))
+;; This macro hides the reptative details and help your intention more succinctly
 
-
+;; Here's the implementation
 (defmacro if-valid
   "Handle validation more concisely"
   [to-validate validations errors-name & then-else]
   `(let [~errors-name (validate ~to-validate ~validations)]
      (if (empty? ~errors-name)
-       ~@then-else)))
+       ~@then-else))) ;; unpacks 1 level ((println :success) (println :failure errors))
+
+
+;;Book says the way errors-name is being used here is a new strategy. We want
+;; to have access to the errors returned by the validate function within the
+;; then -else statements
+
+;; What I think is happening.
+;; Variable-capture as mentioned at the beginning of this chapter
+;; the Let ~errors-name is eclipsing the args errors-name.
 
 
 (macroexpand
  '(if-valid order-details order-details-validations my-error-name
             (println :success)
             (println :failure my-error-name)))
+
+;; Expands to this:
 (let*
     [my-error-name (user/validate order-details order-details-validations)]
   (if (clojure.core/empty? my-error-name)
     (println :success)
     (println :failure my-error-name)))
+
+
+;; *****************************************************************************
+;; Summary
+;; *****************************************************************************
+
+;; - Macros defined similarly to functions
+;; - Arg destructuring, rest args, recurssion supported
+;; - Macros always return a list
+;; - Use syntax quote (`) over normal quotes
+
+;; - macros are expanded before code is evaluated, no access to results of evaluation
+;; - Traps: Double Evaluation and Variable capture, Use genysyms if let is needed,
+;; Use genysyms if let is needed
+-
+
+
+;; *****************************************************************************
+;; Excercises
+;; *****************************************************************************
+
+;; 1. Write the macro when-valid so that it behaves similarly to when. Here is an
+;; example of calling it:
+
+(when-valid order-details order-details-validations
+            (println "It's a success!")
+            (render :success))
+;; When the data is valid the println and render forms should be evaluated, and
+;; when-valid should return nil if the data is invalid
+
+;; Solution:
+
+(defmacro when-valid
+  [to-validate & body]
+  `(let []))
+
+
+
+
+
+;; 2. You saw that `and` is implemented as a macro. Implement `or` as a macro.
+
+;; Solution:
+
+
+
+
+
+;; 3. In Chapter 5 you created a series of functions (c-int, c-str, c-dex) to read
+;; an RPG charater's attributes. Write a macro that defines an arbitrary number of
+;; attribute retrieving functions using one macro call. Here's how you would call it:
+
+(defattrs
+  c-int :intelligence
+  c-str :strength
+  c-dex :dexterity)

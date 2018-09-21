@@ -1,6 +1,4 @@
 ;; Chapter 8 Writing Macros
-;; legend:
-;; fn = functions
 
 ;; Table of Contents:
 ;; ******************
@@ -13,6 +11,22 @@
 ;; Refactoring a Macro and Unquote Splicing
 ;; Things to watch out for
 ;;;; Variable Capture
+
+;; *****************************************************************************
+;; Summary
+;; *****************************************************************************
+
+;; - Macros defined similarly to functions
+;; - Arg destructuring, rest args, recurssion supported
+;; - Macros always return a list
+;; - Use syntax quote (`) over normal quotes
+
+;; - macros are expanded before code is evaluated, no access to results of evaluation
+;; - Traps: Double Evaluation and Variable capture, Use genysyms if let is needed,
+;; Use genysyms if let is needed
+
+
+
 
 ;; *****************************************************************************
 ;; Macros Are Essential
@@ -113,7 +127,6 @@
 
 
 
-;; *****************************************************************************
 ;;;; Simple Quoting
 ;; *****************************************************************************
 
@@ -180,7 +193,6 @@ sweating-to-the-oldies
 
 
 
-;; *****************************************************************************
 ;;;; Syntax Quoting
 ;; *****************************************************************************
 
@@ -267,8 +279,8 @@ sweating-to-the-oldies
 ;; *****************************************************************************
 ;; Refactoring a Macro and Unquote Splicing
 ;; *****************************************************************************
-;; We can improve code-critic from the previous section
 
+;; We can improve code-critic from the previous section
 
 ;; moving macro guts to an outside function.
 ;; Notice criticize-code returns a syntax quoted list.
@@ -347,7 +359,6 @@ sweating-to-the-oldies
 ;; Things to watch out for
 ;; *****************************************************************************
 
-;; *****************************************************************************
 ;;;; Variable Capture
 ;; *****************************************************************************
 
@@ -428,7 +439,6 @@ sweating-to-the-oldies
 ;; => (clojure.core/let [name__2872__auto__ "Larry Potter"] name__2872__auto__)
 
 
-;; *****************************************************************************
 ;;;; Double Evaluation
 ;; *****************************************************************************
 
@@ -467,8 +477,6 @@ sweating-to-the-oldies
 ;; *****************************************************************************
 ;;;; Macros All the Way Down
 ;; *****************************************************************************
-
-;;
 
 (defmacro report
   [to-try]
@@ -659,19 +667,6 @@ sweating-to-the-oldies
     (println :failure my-error-name)))
 
 
-;; *****************************************************************************
-;; Summary
-;; *****************************************************************************
-
-;; - Macros defined similarly to functions
-;; - Arg destructuring, rest args, recurssion supported
-;; - Macros always return a list
-;; - Use syntax quote (`) over normal quotes
-
-;; - macros are expanded before code is evaluated, no access to results of evaluation
-;; - Traps: Double Evaluation and Variable capture, Use genysyms if let is needed,
-;; Use genysyms if let is needed
--
 
 
 ;; *****************************************************************************
